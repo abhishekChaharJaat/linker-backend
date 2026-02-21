@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import db
@@ -5,9 +6,11 @@ from app.routers import links, categories
 
 app = FastAPI()
 
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://linker-frontend-sepia.vercel.app"],
+   allow_origins=["http://localhost:3000", frontend_url],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
