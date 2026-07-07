@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import db
-from app.routers import links, categories
+from app.controllers import link_controller, category_controller
 
 app = FastAPI()
 
@@ -16,9 +16,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(links.router)
-app.include_router(categories.router)
+# Include controllers
+app.include_router(link_controller.router)
+app.include_router(category_controller.router)
 
 
 @app.on_event("startup")
