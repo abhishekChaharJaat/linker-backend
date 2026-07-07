@@ -4,9 +4,15 @@ from fastapi import HTTPException
 from app.repositories.link_repository import link_repository
 from app.models.link import AddLinkRequest
 from app.utils.serializers import serialize_doc
+from app.cache import get_cache, set_cache, delete_cache
+
+CACHE_KEY = "links:{user_id}"
 
 
 class LinkService:
+    def _cache_key(self, user_id: str) -> str:
+        return CACHE_KEY.format(user_id=user_id)
+
     async def create_link(self, data: AddLinkRequest, user_id: str) -> dict:
         link_data = {
             "user_id": user_id,
@@ -21,16 +27,22 @@ class LinkService:
             inserted_id = await link_repository.insert_link(link_data)
         except Exception:
             raise HTTPException(status_code=500, detail="Failed to create link")
+        await delete_cache(self._cache_key(user_id))
         link_data["_id"] = inserted_id
         link_data["created_at"] = link_data["created_at"].isoformat()
         return {"success": True, "message": "Link added successfully", "data": link_data}
 
     async def get_all_links(self, user_id: str) -> dict:
+        cached = await get_cache(self._cache_key(user_id))
+        if cached:
+            return cached
         try:
             links = await link_repository.find_links_by_user(user_id)
         except Exception:
             raise HTTPException(status_code=500, detail="Failed to fetch links")
-        return {"links": [serialize_doc(link) for link in links]}
+        result = {"links": [serialize_doc(link) for link in links]}
+        await set_cache(self._cache_key(user_id), result)
+        return result
 
     async def delete_link(self, link_id: str, user_id: str) -> dict:
         try:
@@ -41,6 +53,7 @@ class LinkService:
             raise HTTPException(status_code=500, detail="Failed to delete link")
         if deleted_count == 0:
             raise HTTPException(status_code=404, detail="Link not found or not authorized")
+        await delete_cache(self._cache_key(user_id))
         return {"success": True, "message": "Link deleted successfully"}
 
     async def edit_link(self, link_id: str, data: AddLinkRequest, user_id: str) -> dict:
@@ -59,6 +72,7 @@ class LinkService:
             raise HTTPException(status_code=500, detail="Failed to update link")
         if matched_count == 0:
             raise HTTPException(status_code=404, detail="Link not found or not authorized")
+        await delete_cache(self._cache_key(user_id))
         return {"success": True, "message": "Link updated successfully"}
 
 
